@@ -1,18 +1,11 @@
 package cz.jkuchar.rcba.rules;
 
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 
-import org.springframework.stereotype.Component;
-
-@Component
 public class Item {
 
-	private Map<String, String> memory;
+	private TupleCollection memory;
 	private long id;
 
 	public Item() {
@@ -20,28 +13,20 @@ public class Item {
 	}
 
 	public Item(int id) {
-		this.memory = new HashMap<String, String>();
+		this.memory = new TupleCollection();
 		this.id = id;
 	}
 
-	public boolean containsKey(String key) {
-		return this.memory.containsKey(key);
-	}
-	
-	public boolean containsAll(Collection<String> in){
-		return this.memory.keySet().containsAll(in);
-	}
-	
-	public boolean containsAllEntries(Set<Entry<String,String>> set){
-		return this.memory.entrySet().containsAll(set);
-	}
-
-	public String get(String key) {
+	public List<String> get(String key) {
 		return this.memory.get(key);
 	}
 
 	public void put(String key, String value) {
 		this.memory.put(key, value);
+	}
+
+	public List<String> keys(){
+		return new ArrayList<>(memory.keys());
 	}
 
 	public long getId() {
@@ -56,6 +41,5 @@ public class Item {
 	public String toString() {
 		return "Item [memory=" + memory + "]";
 	}
-	
 
 }

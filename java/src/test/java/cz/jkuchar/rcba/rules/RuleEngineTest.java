@@ -3,19 +3,10 @@ package cz.jkuchar.rcba.rules;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import cz.jkuchar.rcba.TestConfiguration;
-
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes={TestConfiguration.class})
 public class RuleEngineTest {
 	
-	@Autowired
-	RuleEngine re;
+	RuleEngine re = new RuleEngine();
 	
 	@Test
 	public void emptyAtInit(){
@@ -45,7 +36,7 @@ public class RuleEngineTest {
 		item.put("a", "b");
 		Rule result = re.getTopMatch(item);
 		Assert.assertNotNull(result);
-		Assert.assertEquals(result.getCons().get("y"),"1");
+		Assert.assertEquals(result.getCons().get("y").get(0),"1");
 	}
 	
 	@Test
@@ -67,6 +58,45 @@ public class RuleEngineTest {
 		Item item = new Item(123);
 		item.put("q", "1");
 		Assert.assertTrue(re.matchRule(Rule.buildRule("{q=1}=>{y=1}", 0.0, 0.0), item));
+	}
+
+	@Test
+	public void match4(){
+		Item item = new Item(123);
+		item.put("q", "1");
+		item.put("q", "2");
+		Assert.assertTrue(re.matchRule(Rule.buildRule("{q=2}=>{y=1}", 0.0, 0.0), item));
+	}
+
+	@Test
+	public void match7(){
+		Item item = new Item(123);
+		item.put("q", "1");
+		item.put("q", "2");
+		Assert.assertTrue(re.matchRule(Rule.buildRule("{q=1}=>{y=1}", 0.0, 0.0), item));
+	}
+
+	@Test
+	public void match8(){
+		Item item = new Item(123);
+		item.put("q", "1");
+		Assert.assertFalse(re.matchRule(Rule.buildRule("{q=1,q=2}=>{y=1}", 0.0, 0.0), item));
+	}
+
+	@Test
+	public void match5(){
+		Item item = new Item(123);
+		item.put("q", "1");
+		item.put("q", "2");
+		Assert.assertFalse(re.matchRule(Rule.buildRule("{q=3}=>{y=1}", 0.0, 0.0), item));
+	}
+
+	@Test
+	public void match6(){
+		Item item = new Item(123);
+		item.put("q", "1");
+		item.put("q", "2");
+		Assert.assertFalse(re.matchRule(Rule.buildRule("{q=1,q=3}=>{y=1}", 0.0, 0.0), item));
 	}
 	
 }

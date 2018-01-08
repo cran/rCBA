@@ -1,7 +1,6 @@
 package cz.jkuchar.rcba.rules;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -9,14 +8,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
+import cz.jkuchar.rcba.pruning.ASet;
 
-import cz.jkuchar.rcba.pruning.Tuple;
 
-@Component
-@Scope("prototype")
 public class Rule implements Comparable<Rule> {
 
 	// textual representation of rule
@@ -31,11 +27,14 @@ public class Rule implements Comparable<Rule> {
 	private Rule defaultRule;
 
 	private boolean marked = false;
-	private List<Tuple> replaces = new ArrayList<Tuple>();
+	private List<ASet> replaces = new ArrayList<ASet>();
 	private Map<String, Integer> classCasesCovered = new HashMap<String, Integer>();
 
-	private Map<String, String> antecendent = new HashMap<String, String>();
-	private Map<String, String> consequent = new HashMap<String, String>();
+//	private Map<String, String> antecendent = new HashMap<String, String>();
+//	private Map<String, String> consequent = new HashMap<String, String>();
+
+	private TupleCollection antecendent = new TupleCollection();
+	private TupleCollection consequent = new TupleCollection();
 
 	private Rule() {
 		super();
@@ -57,11 +56,11 @@ public class Rule implements Comparable<Rule> {
 		return lift;
 	}
 
-	public Map<String, String> getAnt() {
+	public TupleCollection getAnt() {
 		return antecendent;
 	}
 
-	public Map<String, String> getCons() {
+	public TupleCollection getCons() {
 		return consequent;
 	}
 
@@ -85,32 +84,48 @@ public class Rule implements Comparable<Rule> {
 		return buildRule(text, null, confidence, support, 0);
 	}
 
+	public static Rule buildRule(List<Tuple> antecedent, List<Tuple> consequent, double support, double confidence, double lift) {
+		Rule out = new Rule();
+		out.text = antecedent.stream().map(t -> t.getLeft()+"="+t.getRight()).collect(Collectors.joining(",", "{", "}"))+
+				" => "+
+				consequent.stream().map(t -> t.getLeft()+"="+t.getRight()).collect(Collectors.joining(",", "{", "}"));
+		out.confidence = confidence;
+		out.support = support;
+		out.lift = lift;
+		antecedent.stream().forEach(t -> out.antecendent.put(t.getLeft(),t.getRight()));
+		consequent.stream().forEach(t -> out.consequent.put(t.getLeft(),t.getRight()));
+		return out;
+	}
+
 	private void parse(Map<String, Set<String>> meta) {
 		if (text != null && text.length() > 0
 				&& text.matches("\\{(.*?)\\}\\s*=>\\s*\\{(.+?)\\}")) {
 
-			String[] parts = text.trim().split("\\s*=>\\s*");
+			String[] parts = text.trim().split("\\}\\s*=>\\s*\\{");
 			if (parts.length != 2) {
 				throw new BadRuleFormatException("Wrong formattting of: "
 						+ text);
 			}
 			if (meta != null) {
-				antecendent = parsePart(parts[0], meta);
-				consequent = parsePart(parts[1], meta);
+				antecendent = parsePart(parts[0].substring(1), meta);
+				consequent = parsePart(parts[1].substring(0, parts[1].length()-1), meta);
+				if(consequent.size()<=0){
+					consequent = parsePart(parts[1].substring(0, parts[1].length()-1));
+				}
 			} else {
-				antecendent = parsePart(parts[0]);
-				consequent = parsePart(parts[1]);
+				antecendent = parsePart(parts[0].substring(1));
+				consequent = parsePart(parts[1].substring(0, parts[1].length()-1));
 			}
 		} else {
 			throw new BadRuleFormatException("Wrong formattting of: " + text);
 		}
 	}
 
-	private Map<String, String> parsePart(String part,
+	private TupleCollection parsePart(String part,
 			Map<String, Set<String>> meta) {
 		// remove {}
-		part = part.substring(1, part.length() - 1);
-		Map<String, String> out = new HashMap<String, String>();
+//		part = part.substring(1, part.length() - 1);
+		TupleCollection out = new TupleCollection();
 		
 		for (int i = 0; i < meta.keySet().size(); i++) {
 			for (String key : meta.keySet()) {
@@ -136,10 +151,10 @@ public class Rule implements Comparable<Rule> {
 		return out;
 	}
 
-	private Map<String, String> parsePart(String part) {
+	private TupleCollection parsePart(String part) {
 		// remove {}
-		part = part.substring(1, part.length() - 1);
-		Map<String, String> out = new HashMap<String, String>();
+//		part = part.substring(1, part.length() - 1);
+		TupleCollection out = new TupleCollection();
 		String[] attrs = part.split(",");
 		for (String attr : attrs) {
 			Pattern pattern = Pattern.compile("(.*)=(.*)");
@@ -182,21 +197,21 @@ public class Rule implements Comparable<Rule> {
 		this.defaultRule = defaultRule;
 	}
 
-	public void incClassCasesCovered(String className) {
+	public synchronized void incClassCasesCovered(String className) {
 		if (!this.classCasesCovered.containsKey(className)) {
 			classCasesCovered.put(className, 0);
 		}
 		classCasesCovered.put(className, classCasesCovered.get(className) + 1);
 	}
 
-	public void decClassCasesCovered(String className) {
+	public synchronized void decClassCasesCovered(String className) {
 		if (!this.classCasesCovered.containsKey(className)) {
 			classCasesCovered.put(className, 0);
 		}
 		classCasesCovered.put(className, classCasesCovered.get(className) - 1);
 	}
 	
-	public void setClassCasesCovered(String className, int value) {
+	public synchronized void setClassCasesCovered(String className, int value) {
 		if (!this.classCasesCovered.containsKey(className)) {
 			classCasesCovered.put(className, 0);
 		}
@@ -207,13 +222,13 @@ public class Rule implements Comparable<Rule> {
 		return this.classCasesCovered;
 	}
 
-	public void addReplace(Tuple tuple) {
-		if (!this.replaces.contains(tuple)) {
-			replaces.add(tuple);
+	public synchronized void addReplace(ASet aset) {
+		if (!this.replaces.contains(aset)) {
+			replaces.add(aset);
 		}
 	}
 
-	public List<Tuple> getReplaces() {
+	public List<ASet> getReplaces() {
 		return this.replaces;
 	}
 
@@ -221,11 +236,11 @@ public class Rule implements Comparable<Rule> {
 		return this.marked;
 	}
 
-	public void mark() {
+	public synchronized void mark() {
 		this.marked = true;
 	}
 
-	public void unmark() {
+	public synchronized void unmark() {
 		this.marked = false;
 	}	
 

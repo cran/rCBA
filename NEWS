@@ -1,3 +1,35 @@
+rCBA 0.3.0 (Release date: 2018-01-08)
+==============
+
+Changes:
+
+* FPGrowth as an alternative algorithm
+* FPGrowth-based automatic build of the model
+* Vagrant + RStudio server development environment
+* Fixed typos and bugs
+
+
+rCBA 0.2.0 (Release date: 2016-10-05)
+==============
+
+Changes:
+
+* Support for transactions as inputs
+* Fixed typos and bugs
+* Optimalization of Java dependencies
+
+
+rCBA 0.1.0 (Release date: 2016-02-01)
+==============
+
+Changes:
+
+* Improved pruning algorithms
+* Implemented a classification function
+* Implemented an automatic model build
+* Optimalization of Java dependencies
+
+
 rCBA 0.0.1 (Release date: 2015-12-08)
 ==============
 

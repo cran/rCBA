@@ -7,26 +7,22 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 import cz.jkuchar.rcba.rules.Item;
 import cz.jkuchar.rcba.rules.Rule;
 import cz.jkuchar.rcba.rules.RuleEngine;
 
-@Component
-public class M1CBA implements Pruning {
 
-	@Autowired
-	RuleEngine re;
+public class M1CBA implements Pruning {	
+	
+	RuleEngine re = new RuleEngine();
 
 	@Override
-	public List<Rule> prune(List<Rule> rules, List<Item> train) {
+	public List<Rule> prune(List<Rule> rules, List<Item> train) {		
 		Collections.sort(rules);
 		List<Rule> pruned = new LinkedList<Rule>();
 
@@ -35,7 +31,7 @@ public class M1CBA implements Pruning {
 
 		for (int rid = 0; rid < rules.size(); rid++) {
 			Rule rule = rules.get(rid);
-			String className = rule.getCons().keySet().iterator().next();
+			String className = rule.getCons().keys().iterator().next();
 			// match of antecedents
 			List<Integer> temp = IntStream.range(0, train.size()).parallel()
 					.filter(item -> re.matchRule(rule, train.get(item)))
@@ -55,7 +51,8 @@ public class M1CBA implements Pruning {
 				}
 
 				List<String> mc = train.stream().parallel()
-						.map(tr -> tr.get(className))
+						.flatMap(tr -> tr.get(className).stream())
+						.filter(s -> s!=null)
 						.collect(Collectors.toList());
 				Entry<String, Integer> mostCommon = mostCommon(mc);
 				if (mostCommon != null) {
@@ -98,7 +95,7 @@ public class M1CBA implements Pruning {
 			pruned.add(pruned.get(pruned.size() - 1).getDefaultRule());
 			
 			Rule dRule = pruned.get(pruned.size()-1);			
-			String className = dRule.getCons().keySet().iterator().next();			
+			String className = dRule.getCons().keys().iterator().next();
 			long count = IntStream.range(0, train.size()).parallel()
 					.filter(item -> dRule.getCons().get(className).equals(train.get(item).get(className)))
 					.count();						

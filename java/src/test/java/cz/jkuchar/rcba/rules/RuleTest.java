@@ -9,14 +9,7 @@ import java.util.logging.Logger;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import cz.jkuchar.rcba.TestConfiguration;
-
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = { TestConfiguration.class })
 public class RuleTest {
 
 	Logger logger = Logger.getLogger(RuleTest.class.getCanonicalName());
@@ -80,6 +73,17 @@ public class RuleTest {
 		Assert.assertEquals(r.getCons().size(), 1);
 		Assert.assertTrue(r.getAnt().containsKey("a"));
 		Assert.assertTrue(r.getAnt().get("a").contains("1"));
+		Assert.assertTrue(r.getCons().containsKey("b"));
+		Assert.assertTrue(r.getCons().get("b").contains("2"));
+	}
+	
+	@Test
+	public void charInValue() {
+		Rule r = Rule.buildRule("{a=>1} => {b=2}", 0.0, 0.0);
+		Assert.assertEquals(r.getAnt().size(), 1);
+		Assert.assertEquals(r.getCons().size(), 1);
+		Assert.assertTrue(r.getAnt().containsKey("a"));
+		Assert.assertTrue(r.getAnt().get("a").contains(">1"));
 		Assert.assertTrue(r.getCons().containsKey("b"));
 		Assert.assertTrue(r.getCons().get("b").contains("2"));
 	}
@@ -212,6 +216,21 @@ public class RuleTest {
 		Assert.assertTrue(r.getAnt().get("age").contains("5"));
 		Assert.assertTrue(r.getCons().containsKey("age=20,age=30"));
 		Assert.assertTrue(r.getCons().get("age=20,age=30").contains("age<20,age>20"));
+	}
+
+	@Test
+	public void multipleSameKeys() {
+		Rule r = Rule.buildRule("{a=1,a=2,c=3} => {d=4}", 0.0, 0.0);
+		Assert.assertEquals(r.getAnt().size(), 2);
+		Assert.assertEquals(r.getCons().size(), 1);
+		Assert.assertTrue(r.getAnt().containsKey("a"));
+		Assert.assertTrue(r.getAnt().containsKey("a"));
+		Assert.assertTrue(r.getAnt().containsKey("c"));
+		Assert.assertTrue(r.getAnt().get("a").contains("1"));
+		Assert.assertTrue(r.getAnt().get("a").contains("2"));
+		Assert.assertTrue(r.getAnt().get("c").contains("3"));
+		Assert.assertTrue(r.getCons().containsKey("d"));
+		Assert.assertTrue(r.getCons().get("d").contains("4"));
 	}
 
 }

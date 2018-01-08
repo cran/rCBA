@@ -11,39 +11,39 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
-
+import cz.jkuchar.rcba.build.RandomSearch;
+import cz.jkuchar.rcba.fpg.AssociationRules;
+import cz.jkuchar.rcba.fpg.FPGrowth;
+import cz.jkuchar.rcba.fpg.FrequentPattern;
 import cz.jkuchar.rcba.pruning.DCBrCBA;
 import cz.jkuchar.rcba.pruning.M1CBA;
 import cz.jkuchar.rcba.pruning.M2CBA;
 import cz.jkuchar.rcba.pruning.Pruning;
 import cz.jkuchar.rcba.rules.Item;
 import cz.jkuchar.rcba.rules.Rule;
+import cz.jkuchar.rcba.rules.RuleEngine;
+import cz.jkuchar.rcba.rules.Tuple;
 
-@Component
-@Scope("prototype")
 public class RPruning {
 
 	private List<Rule> rules;
 	private List<Item> items;
 	private String[] cNames;
+	private String[] values;
 
 	private Map<String, Set<String>> cache;
+	
+	private RuleEngine re = new RuleEngine();
 
-	@Autowired
-	M2CBA m2Pruning;
-
-	@Autowired
-	M1CBA m1pruning;
-
-	@Autowired
-	DCBrCBA dcpruning;
+	private static Logger logger = Logger.getLogger(RPruning.class.getName());
 
 	public RPruning() {
 		this.cNames = new String[1];
+		this.values = new String[1];
 		this.rules = new ArrayList<Rule>();
 		this.items = new ArrayList<Item>();
 		this.cache = new HashMap<String, Set<String>>();
@@ -54,6 +54,10 @@ public class RPruning {
 		for (String cname : cNames) {
 			this.cache.put(cname, new HashSet<String>());
 		}
+	}
+
+	public void setValues(String[] values) {
+		this.values = values;
 	}
 
 	public void loadItemsFromFile(String fileName) {
@@ -67,6 +71,38 @@ public class RPruning {
 					.forEach(line -> addItem(line));
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
+		}
+	}
+
+	public void addTransactionMatrix(Object matrix[]) {
+		int rows = matrix.length;
+		if (rows > 0) {
+			int columns = ((boolean[]) matrix[0]).length;
+			for (int i = 0; i < rows; i++) {
+				Item item = new Item();
+				for (int j = 0; j < columns; j++) {
+					boolean v = ((boolean []) matrix[i])[j];
+					if(v){
+						item.put(cNames[j], values[j]);
+						this.cache.get(cNames[j]).add(values[j]);
+					}
+				}
+				this.items.add(item);
+			}
+		}
+	}
+
+	public void addDataFrame(Object dataFrame[]) {
+		int columns = dataFrame.length;
+		if (columns > 0) {
+			int rows = ((String[]) dataFrame[0]).length;
+			for (int i = 0; i < rows; i++) {
+				String[] row = new String[columns];
+				for (int j = 0; j < columns; j++) {
+					row[j] = ((String[]) dataFrame[j])[i];
+				}
+				addItem(row);
+			}
 		}
 	}
 
@@ -90,17 +126,34 @@ public class RPruning {
 		this.rules.add(Rule.buildRule(rule, this.cache, confidence, support, lift));
 	}
 
+	public void addRuleFrame(Object dataFrame[]) {
+		int columns = dataFrame.length;
+		if (columns > 0) {
+			int rows = ((String[]) dataFrame[0]).length;
+			for (int i = 0; i < rows; i++) {
+				String rule = ((String[]) dataFrame[0])[i];
+				double confidence = (dataFrame[2] instanceof double[]) ? ((double[]) dataFrame[2])[i]
+						: (double) ((int[]) dataFrame[2])[i];
+				double support = (dataFrame[1] instanceof double[]) ? ((double[]) dataFrame[1])[i]
+						: (double) ((int[]) dataFrame[1])[i];
+				double lift = (dataFrame[3] instanceof double[]) ? ((double[]) dataFrame[3])[i]
+						: (double) ((int[]) dataFrame[3])[i];
+				addRule(rule, confidence, support, lift);
+			}
+		}
+	}
+
 	public Rule[] prune(String method) {
 		Pruning pruning;
 		switch (method) {
 		case "dcbrcba":
-			pruning = dcpruning;
+			pruning = new DCBrCBA();
 			break;
 		case "m1cba":
-			pruning = m1pruning;
+			pruning = new M1CBA();
 			break;
 		default:
-			pruning = m2Pruning;
+			pruning = new M2CBA();
 			break;
 		}
 		try {
@@ -110,6 +163,67 @@ public class RPruning {
 			e.printStackTrace();
 		}
 		return (Rule[]) rules.toArray();
+	}
+
+	public String[] classify() {
+		String[] predictions = new String[this.items.size()];
+		re.addRules(rules);
+		for (int i = 0; i < predictions.length; i++) {
+			Rule tm = re.getTopMatch(this.items.get(i));
+			if (tm == null) {
+				predictions[i] = null;
+			} else {
+				predictions[i] = tm.getCons().values().iterator().next();
+			}
+		}
+		re.clear();
+		return predictions;
+	}
+
+	public String[][] fpgrowth(double minSupport, double minConfidence, int maxLength, String consequent) {
+		try {
+			logger.log(Level.INFO, "FP-Growth - start");
+			FPGrowth fpGrowth = new FPGrowth();
+			List<List<Tuple>> t = items.stream().map(item -> {
+				List<Tuple> tuples = new ArrayList<>();
+				for(String key:item.keys()){
+					for(String val:item.get(key)){
+						tuples.add(new Tuple(key,val));
+					}
+				}
+				return tuples;
+			}).collect(Collectors.toList());
+			logger.log(Level.INFO, "FP-Growth - data converted");
+			List<FrequentPattern> fps = fpGrowth.run(t, minSupport, maxLength);
+			logger.log(Level.INFO, "FP-Growth - frequent patterns: "+fps.size());
+//			System.out.println(fps.size());
+			List<Rule> rules = AssociationRules.generate(fps, fpGrowth, t.size(), minConfidence, consequent);
+			logger.log(Level.INFO, "FP-Growth - rules: "+rules.size());
+			return rules.stream().map(rule -> new String[]{rule.getText(), Double.toString(rule.getSupport()), Double.toString(rule.getConfidence()), Double.toString(rule.getLift())}).toArray(String[][]::new);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return new String[0][4];
+	}
+
+	public String[][] build(String consequent) {
+		try {
+			RandomSearch build = new RandomSearch();
+			List<List<Tuple>> t = items.stream().map(item -> {
+				List<Tuple> tuples = new ArrayList<>();
+				for(String key:item.keys()){
+					for(String val:item.get(key)){
+						tuples.add(new Tuple(key,val));
+					}
+				}
+				return tuples;
+			}).collect(Collectors.toList());
+			List<Rule> rules = build.build(t, consequent);
+			return rules.stream().map(rule -> new String[]{rule.getText(), Double.toString(rule.getSupport()), Double.toString(rule.getConfidence()), Double.toString(rule.getLift())}).toArray(String[][]::new);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return new String[0][4];
 	}
 
 }
