@@ -4,12 +4,16 @@
 \alias{buildFPGrowth}
 \title{Build classifier function (FP-Growth-based)}
 \usage{
-buildFPGrowth(train, className = NULL)
+buildFPGrowth(train, className = NULL, verbose = TRUE, parallel = TRUE)
 }
 \arguments{
 \item{train}{\code{data.frame} or \code{transactions} from \code{arules} with input data}
 
 \item{className}{column name with the target class - default is the last column}
+
+\item{verbose}{verbose indicator}
+
+\item{parallel}{parallel indicator}
 }
 \value{
 list with parameters and model as data.frame with rules
@@ -21,11 +25,11 @@ Automatic build of the classification model using the FP-Growth algorithm
 library("rCBA")
 data("iris")
 
-output <- rCBA::buildFPGrowth(iris[sample(nrow(iris), 50),], "Species")
+output <- rCBA::buildFPGrowth(iris[sample(nrow(iris), 20),], "Species", parallel=FALSE)
 model <- output$model
 
 predictions <- rCBA::classification(iris, model)
 table(predictions)
-sum(iris$Species==predictions, na.rm=TRUE) / length(predictions)
+sum(as.character(iris$Species)==as.character(predictions), na.rm=TRUE) / length(predictions)
 
 }

@@ -5,22 +5,27 @@
 #' @param className column name with the target class - default is the last column
 #' @param pruning performing pruning while building the model
 #' @param sa simulated annealing setting. Default values: list(temp=100.0, alpha=0.05, tabuRuleLength=5, timeout=10)
+#' @param verbose verbose indicator
+#' @param parallel parallel indicator
 #' @return list with parameters and model as data.frame with rules
 #' @export
 #' @examples
 #' library("rCBA")
 #' data("iris")
 #'
-#' output <- rCBA::build(iris,sa = list(alpha=0.5)) # speeding up the cooling
+#' output <- rCBA::build(iris,sa = list(alpha=0.5), parallel=FALSE) # speeding up the cooling
 #' model <- output$model
 #'
 #' predictions <- rCBA::classification(iris, model)
 #' table(predictions)
-#' sum(iris$Species==predictions, na.rm=TRUE) / length(predictions)
+#' sum(as.character(iris$Species)==as.character(predictions), na.rm=TRUE) / length(predictions)
 #'
 #' @include init.R
-build <- function(trainData, className=NA, pruning=TRUE, sa=list()){
-	print(paste(Sys.time(), " rCBA: initialized", sep=""))
+build <- function(trainData, className=NA, pruning=TRUE, sa=list(), verbose = TRUE, parallel=TRUE){
+  if(verbose){
+    message(paste(Sys.time()," rCBA: initialized",sep=""))
+    start.time <- proc.time()
+  }
 
   # convert data to frame if passed as transactions
   if(is(trainData,"transactions")){
@@ -50,7 +55,12 @@ build <- function(trainData, className=NA, pruning=TRUE, sa=list()){
 	# convert the trainset to transactions
 	txns <- as(trainSet, "transactions")
 
-	print(paste(Sys.time()," rCBA: dataframe ",nrow(trainData),"x",ncol(trainData),sep=""))
+	if(verbose){
+	  message(paste(Sys.time()," rCBA: data ",paste(dim(trainData), collapse="x"),sep=""))
+	  message (paste("\t took:", round((proc.time() - start.time)[3], 2), " s"))
+	}
+	start.time <- proc.time()
+
 
 	# initial temperature
 	temp <- sa$temp
@@ -60,15 +70,21 @@ build <- function(trainData, className=NA, pruning=TRUE, sa=list()){
 	tabuRuleLength <- sa$tabuRuleLength
 	# current and best solution
 	currentSolution <- c(runif(1,0,1),runif(1,0,1),round(runif(1,1,min(ncol(trainData),tabuRuleLength))))
-	currentSolutionAccuracy <- .evaluate(currentSolution[1], currentSolution[2], currentSolution[3], txns, trainSet, testSet, className, pruning, sa$timeout)
+	currentSolutionAccuracy <- .evaluate(currentSolution[1], currentSolution[2], currentSolution[3], txns, trainSet, testSet, className, pruning, sa$timeout, parallel)
 	bestSolution <- currentSolution
 	bestSolutionAccuracy <- currentSolutionAccuracy
 
 	accuracies <- c(currentSolutionAccuracy)
 	iteration <- 0
 
+	if(verbose){
+	  cat("Iteration: ")
+	}
 	# start
 	while(temp>1.0){
+	  if(verbose){
+	    cat(paste(iteration, "-", sep = ""))
+	  }
 		iteration <- iteration + 1
 		# generate new solution
 		newSolution <- currentSolution
@@ -126,7 +142,7 @@ build <- function(trainData, className=NA, pruning=TRUE, sa=list()){
 			}
 		}
 		# compute accuracy
-		newSolutionAccuracy <- .evaluate(newSolution[1], newSolution[2], newSolution[3], txns, trainSet, testSet, className, pruning, sa$timeout)
+		newSolutionAccuracy <- .evaluate(newSolution[1], newSolution[2], newSolution[3], txns, trainSet, testSet, className, pruning, sa$timeout, parallel)
 
 		# if mining failed, remember rule length as max tabu value
 		if(newSolutionAccuracy<0) {
@@ -167,7 +183,12 @@ build <- function(trainData, className=NA, pruning=TRUE, sa=list()){
 		gc()
 	}
 
-	print(paste(Sys.time()," rCBA: best solution ",bestSolution,sep=""))
+	if(verbose){
+	  cat("\n")
+	  message(paste(Sys.time()," rCBA: best solution ",paste(bestSolution, collapse=", "),sep=""))
+	  message (paste("\t took:", round((proc.time() - start.time)[3], 2), " s"))
+	}
+	start.time <- proc.time()
 
 	output <- list()
 	output$iteration <- iteration
@@ -176,38 +197,47 @@ build <- function(trainData, className=NA, pruning=TRUE, sa=list()){
 	output$maxlen <- bestSolution[3]
 
 	# use best parameters
-	rules <- apriori(as(trainData, "transactions"), parameter = list(confidence = bestSolution[1], support= bestSolution[2], maxlen=bestSolution[3]), appearance = list(rhs = paste(className,unique(trainData[[className]][!is.na(trainData[[className]])]),sep="="), default="lhs"))
-	rulesFrame <- as(rules, "data.frame")
-	print(paste(Sys.time()," rCBA: rules ",nrow(rulesFrame),"x",ncol(rulesFrame),sep=""))
-	output$initialSize <- nrow(rulesFrame)
+	rules <- suppressWarnings(apriori(as(trainData, "transactions"), parameter = list(confidence = bestSolution[1], support= bestSolution[2], maxlen=bestSolution[3]), appearance = list(rhs = paste(className,unique(trainData[[className]][!is.na(trainData[[className]])]),sep="="), default="lhs"), control = list(verbose = FALSE)))
+	if(verbose){
+	  message(paste(Sys.time()," rCBA: rules ",length(rules),sep=""))
+	  message (paste("\t took:", round((proc.time() - start.time)[3], 2), " s"))
+	}
+	start.time <- proc.time()
 
-	if(pruning==TRUE && nrow(rulesFrame)>0){
+	output$initialSize <- length(rules)
+
+	if(pruning==TRUE && length(rules)>0){
 		# rulesFrame <- pruning(trainData, rulesFrame, method="m2cba")
 		repeating <- TRUE
 		while(repeating==TRUE){
 			tryCatch({
-				rulesFrame <- pruning(trainData, rulesFrame, method="m2cba")
+			  rules <- pruning(trainData, rules, method="m2cba", verbose = FALSE, parallel)
 				repeating <- FALSE
 			},error=function(e){
- 				print("pruning exception")
+			  print(paste(e))
+			  print(paste("pruning exception:  ",e))
  			})
 		}
 	}
-	print(paste(Sys.time()," rCBA: rules ",nrow(rulesFrame),"x",ncol(rulesFrame),sep=""))
+	if(verbose){
+	  message(paste(Sys.time()," rCBA: pruned rules ",length(rules),sep=""))
+	  message (paste("\t took:", round((proc.time() - start.time)[3], 2), " s"))
+	}
+	start.time <- proc.time()
 
-	output$size <- nrow(rulesFrame)
-	output$model <- rulesFrame
+	output$size <- length(rules)
+	output$model <- rules
 	return(output)
 }
 
-.evaluate <- function(conf, supp, maxRuleLen, txns, trainSet, testSet, className, pruning, to=10){
+.evaluate <- function(conf, supp, maxRuleLen, txns, trainSet, testSet, className, pruning, to=10, parallel = TRUE){
 	# initializce
 	rules <- NULL
 	# timeout limit
 	tryCatch({
 		# rules <- .processWithTimeout(function()
 		rules <- withTimeout({
-		  apriori(txns, parameter = list(confidence = conf, support= supp, maxlen=maxRuleLen), appearance = list(rhs = paste(className,unique(trainSet[[className]][!is.na(trainSet[[className]])]),sep="="), default="lhs"))
+		  suppressWarnings(apriori(txns, parameter = list(confidence = conf, support= supp, maxlen=maxRuleLen), appearance = list(rhs = paste(className,unique(trainSet[[className]][!is.na(trainSet[[className]])]),sep="="), default="lhs"), control = list(verbose = FALSE)))
 		#  , timeout=to)
 		}, timeout = to, onTimeout="error");
 	}, TimeoutException = function(e){
@@ -227,14 +257,12 @@ build <- function(trainData, className=NA, pruning=TRUE, sa=list()){
 	if(is.null(rules) || length(rules)>1e5) {
 		return(-1)
 	}
-	# convert
-	rulesFrame <- as(rules, "data.frame")
 	# pruning
-	if(pruning==TRUE && nrow(rulesFrame)>0){
+	if(pruning==TRUE && length(rules)>0){
 		repeating <- TRUE
 		while(repeating==TRUE){
 			tryCatch({
-				rulesFrame <- pruning(trainSet, rulesFrame, method="m2cba")
+			  rules <- pruning(trainSet, rules, method="m2cba", verbose = FALSE, parallel)
 				repeating <- FALSE
 			},error=function(e){
  				print("pruning exception")
@@ -242,8 +270,8 @@ build <- function(trainData, className=NA, pruning=TRUE, sa=list()){
 		}
 	}
 	# classification and compute accuracy
-	if(nrow(rulesFrame)>0){
-		predictions <- classification(testSet, rulesFrame)
+	if(length(rules)>0){
+		predictions <- classification(testSet, rules, verbose = FALSE)
 		accuracy <- sum(as.character(testSet[[className]])==predictions, na.rm=TRUE) / length(predictions)
 		return(accuracy)
 	} else {

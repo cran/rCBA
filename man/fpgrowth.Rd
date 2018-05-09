@@ -5,7 +5,7 @@
 \title{FP-Growth}
 \usage{
 fpgrowth(train, support = 0.01, confidence = 1, maxLength = 5,
-  consequent = NULL)
+  consequent = NULL, verbose = TRUE, parallel = TRUE)
 }
 \arguments{
 \item{train}{\code{data.frame} or \code{transactions} from \code{arules} with input data}
@@ -17,6 +17,10 @@ fpgrowth(train, support = 0.01, confidence = 1, maxLength = 5,
 \item{maxLength}{maximum length}
 
 \item{consequent}{filter consequent - column name with consequent/target class}
+
+\item{verbose}{verbose indicator}
+
+\item{parallel}{parallel indicator}
 }
 \description{
 FP-Growth algorithm - Jiawei Han, Jian Pei, and Yiwen Yin.
@@ -30,15 +34,15 @@ train <- sapply(iris,as.factor)
 train <- data.frame(train, check.names=FALSE)
 txns <- as(train,"transactions")
 
-rules = rCBA::fpgrowth(txns, support=0.03, confidence=0.03, maxLength=2, consequent="Species")
-rulesFrame <- as(rules,"data.frame")
+rules = rCBA::fpgrowth(txns, support=0.03, confidence=0.03, maxLength=2, consequent="Species",
+           parallel=FALSE)
 
-predictions <- rCBA::classification(train,rulesFrame)
+predictions <- rCBA::classification(train,rules)
 table(predictions)
-sum(train$Species==predictions,na.rm=TRUE)/length(predictions)
+sum(as.character(train$Species)==as.character(predictions),na.rm=TRUE)/length(predictions)
 
-prunedRulesFrame <- rCBA::pruning(train, rulesFrame, method="m2cba")
-predictions <- rCBA::classification(train, prunedRulesFrame)
+prunedRules <- rCBA::pruning(train, rules, method="m2cba", parallel=FALSE)
+predictions <- rCBA::classification(train, prunedRules)
 table(predictions)
-sum(train$Species==predictions,na.rm=TRUE)/length(predictions)
+sum(as.character(train$Species)==as.character(predictions),na.rm=TRUE)/length(predictions)
 }

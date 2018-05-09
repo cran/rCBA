@@ -4,7 +4,7 @@
 \alias{pruning}
 \title{A Pruning function}
 \usage{
-pruning(train, rules, method = "m2cba")
+pruning(train, rules, method = "m2cba", verbose = TRUE, parallel = TRUE)
 }
 \arguments{
 \item{train}{trainData \code{data.frame} or \code{transactions} from \code{arules} with input data}
@@ -12,6 +12,10 @@ pruning(train, rules, method = "m2cba")
 \item{rules}{\code{data.frame} with rules}
 
 \item{method}{pruning method m2cba(default)|m1cba|dcbrcba}
+
+\item{verbose}{verbose indicator}
+
+\item{parallel}{parallel indicator}
 }
 \value{
 \code{data.frame} with pruned rules
@@ -30,9 +34,8 @@ txns <- as(train,"transactions")
 
 rules = apriori(txns, parameter=list(support=0.03, confidence=0.03, minlen=2),
 appearance = list(rhs=c("Species=setosa", "Species=versicolor", "Species=virginica"),default="lhs"))
-rulesFrame <- as(rules,"data.frame")
 
-print(nrow(rulesFrame))
-prunedRulesFrame <- rCBA::pruning(train, rulesFrame, method="m2cba")
-print(nrow(prunedRulesFrame))
+print(length(rules))
+prunedRules <- rCBA::pruning(train, rules, method="m2cba", parallel=FALSE)
+print(length(prunedRules))
 }

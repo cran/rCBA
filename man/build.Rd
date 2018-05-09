@@ -4,7 +4,8 @@
 \alias{build}
 \title{Build classifier function (Apriori-based)}
 \usage{
-build(trainData, className = NA, pruning = TRUE, sa = list())
+build(trainData, className = NA, pruning = TRUE, sa = list(),
+  verbose = TRUE, parallel = TRUE)
 }
 \arguments{
 \item{trainData}{\code{data.frame} or \code{transactions} from \code{arules} with input data}
@@ -14,6 +15,10 @@ build(trainData, className = NA, pruning = TRUE, sa = list())
 \item{pruning}{performing pruning while building the model}
 
 \item{sa}{simulated annealing setting. Default values: list(temp=100.0, alpha=0.05, tabuRuleLength=5, timeout=10)}
+
+\item{verbose}{verbose indicator}
+
+\item{parallel}{parallel indicator}
 }
 \value{
 list with parameters and model as data.frame with rules
@@ -25,11 +30,11 @@ Automatic build of the classification model using the Apriori algorithm from the
 library("rCBA")
 data("iris")
 
-output <- rCBA::build(iris,sa = list(alpha=0.5)) # speeding up the cooling
+output <- rCBA::build(iris,sa = list(alpha=0.5), parallel=FALSE) # speeding up the cooling
 model <- output$model
 
 predictions <- rCBA::classification(iris, model)
 table(predictions)
-sum(iris$Species==predictions, na.rm=TRUE) / length(predictions)
+sum(as.character(iris$Species)==as.character(predictions), na.rm=TRUE) / length(predictions)
 
 }

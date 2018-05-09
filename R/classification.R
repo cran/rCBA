@@ -2,6 +2,7 @@
 #'
 #' @param test \code{data.frame} or \code{transactions} from \code{arules} with input data
 #' @param rules \code{data.frame} with rules
+#' @param verbose verbose indicator
 #' @return vector with classifications
 #' @export
 #' @examples
@@ -15,16 +16,18 @@
 #'
 #' rules = apriori(txns, parameter=list(support=0.03, confidence=0.03, minlen=2),
 #'	appearance = list(rhs=c("Species=setosa", "Species=versicolor", "Species=virginica"),default="lhs"))
-#' rulesFrame <- as(rules,"data.frame")
 #'
-#' predictions <- rCBA::classification(train,rulesFrame)
+#' predictions <- rCBA::classification(train,rules)
 #' table(predictions)
-#' sum(train$Species==predictions,na.rm=TRUE)/length(predictions)
+#' sum(as.character(train$Species)==as.character(predictions),na.rm=TRUE)/length(predictions)
 #' @include init.R
-classification <- function(test, rules){
+classification <- function(test, rules, verbose = TRUE){
 	# init java
 	init()
-	print(paste(Sys.time()," rCBA: initialized",sep=""))
+	if(verbose){
+	  message(paste(Sys.time()," rCBA: initialized",sep=""))
+	  start.time <- proc.time()
+	}
 	# init interface
 	jPruning <- .jnew("cz/jkuchar/rcba/r/RPruning")
 	if(is(test,"transactions")){
@@ -45,20 +48,31 @@ classification <- function(test, rules){
 	  testArray <- .jarray(lapply(testConverted, .jarray))
 	  .jcall(jPruning,,"addDataFrame",testArray)
 	}
-	print(paste(Sys.time()," rCBA: data ",paste(dim(test), collapse="x"),sep=""))
+	if(verbose){
+	  message(paste(Sys.time()," rCBA: data ",paste(dim(test), collapse="x"),sep=""))
+	  message (paste("\t took:", round((proc.time() - start.time)[3], 2), " s"))
+	}
 
 	# add rules
+	start.time <- proc.time()
 	rulesFrame <- as(rules,"data.frame")
 	rulesFrame$rules <- as.character(rulesFrame$rules)
 	rulesArray <- .jarray(lapply(rulesFrame, .jarray))
 	.jcall(jPruning,,"addRuleFrame",rulesArray)
-	print(paste(Sys.time()," rCBA: rules ",nrow(rules),"x",ncol(rules),sep=""))
+	if(verbose){
+	  message(paste(Sys.time()," rCBA: rules ",length(rules),sep=""))
+	  message (paste("\t took:", round((proc.time() - start.time)[3], 2), " s"))
+	}
 
 	# perform classification
+	start.time <- proc.time()
 	jResult <- .jcall(jPruning, "[S", "classify")
 	J("java.lang.System")$gc()
-	print(paste(Sys.time()," rCBA: classification completed",sep=""))
+	if(verbose){
+	  message(paste(Sys.time()," rCBA: classification completed",sep=""))
+	  message (paste("\t took:", round((proc.time() - start.time)[3], 2), " s"))
+	}
 	# build output
-	jResult
+	factor(jResult)
 }
 
