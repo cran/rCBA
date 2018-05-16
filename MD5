@@ -1,11 +1,11 @@
-b51c0c6cd49bc2a6ffec2279f2bacaed *DESCRIPTION
+bc14a20b417c9bbca2cc4b01720ba25d *DESCRIPTION
 6471b35750096a78e542e400fe5c0772 *NAMESPACE
-b8e536dc00c09817b2f72338dbf0bcc7 *NEWS
+ee83c2e52e7a356c1498981a731dd211 *NEWS
 83297d4f7cfffc05a935fcd4024df0d3 *R/build.R
 820f12f0cc8238abd988747cd0ac26dc *R/buildFPGrowth.R
 46c15ea077444ca6c6240724af8b55d0 *R/classification.R
 c1d522673ce558cd3a2c4f5f224cd2ab *R/fpgrowth.R
-cda62193dbbd51d46c2a8aeddf75789e *R/init.R
+d52e4bcf7347d8c2c41d1f10f047c8bb *R/init.R
 f3a7313f2294011dcc8f5ed3a80e6a70 *R/pruning.R
 9751da027373f016981144bfab2419f5 *R/utils.R
 1121f148e65ea22fc688b863e9304390 *inst/java/classes/cz/jkuchar/rcba/Application.class

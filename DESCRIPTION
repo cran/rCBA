@@ -1,6 +1,6 @@
 Package: rCBA
 Title: CBA Classifier for R
-Version: 0.4.1
+Version: 0.4.2
 Authors@R: c(person("Jaroslav", "Kuchar", email = "jaroslav.kuchar@gmail.com", role = c("aut", "cre")),
              person("Tomas", "Kliegr", email="kliegr@gmail.com", role = c("ctb")))
 Author: Jaroslav Kuchar [aut, cre],
@@ -24,6 +24,6 @@ RoxygenNote: 6.0.1
 Collate: 'init.R' 'build.R' 'buildFPGrowth.R' 'classification.R'
         'fpgrowth.R' 'pruning.R' 'utils.R'
 NeedsCompilation: no
-Packaged: 2018-05-09 08:45:25 UTC; vagrant
+Packaged: 2018-05-16 19:56:11 UTC; vagrant
 Repository: CRAN
-Date/Publication: 2018-05-09 08:55:27 UTC
+Date/Publication: 2018-05-16 20:06:54 UTC
