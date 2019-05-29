@@ -1,6 +1,6 @@
 Package: rCBA
-Title: CBA Classifier for R
-Version: 0.4.2
+Title: CBA Classifier
+Version: 0.4.3
 Authors@R: c(person("Jaroslav", "Kuchar", email = "jaroslav.kuchar@gmail.com", role = c("aut", "cre")),
              person("Tomas", "Kliegr", email="kliegr@gmail.com", role = c("ctb")))
 Author: Jaroslav Kuchar [aut, cre],
@@ -20,10 +20,11 @@ Imports: R.utils, TunePareto, methods, stats, utils
 License: Apache License (== 2.0)
 LazyData: true
 SystemRequirements: Java (>= 8)
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.1
+Encoding: UTF-8
 Collate: 'init.R' 'build.R' 'buildFPGrowth.R' 'classification.R'
         'fpgrowth.R' 'pruning.R' 'utils.R'
 NeedsCompilation: no
-Packaged: 2018-05-16 19:56:11 UTC; vagrant
+Packaged: 2019-05-29 21:21:38 UTC; jaroslav.kuchar
 Repository: CRAN
-Date/Publication: 2018-05-16 20:06:54 UTC
+Date/Publication: 2019-05-29 21:50:03 UTC
